@@ -1,36 +1,82 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# WorkFlow ID
 
-## Getting Started
+A Progressive Web App (PWA) for office management, featuring face-based attendance and task management.
 
-First, run the development server:
+## Project Structure
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- `backend/`: FastAPI backend with SQLite database
+- `interface/`: Next.js frontend
+- `scripts/`: Development scripts
+
+## Prerequisites
+
+- Python 3.8+
+- Node.js 18+
+- npm or yarn
+
+## Backend Setup
+
+1. Navigate to the backend folder:
+   ```
+   cd backend
+   ```
+
+2. Install Python dependencies:
+   ```
+   pip install -r requirements.txt
+   ```
+
+3. Run the FastAPI server:
+   ```
+   uvicorn main:app --reload
+   ```
+
+   The API will be available at `http://127.0.0.1:8000`
+
+## Frontend Setup
+
+1. Navigate to the interface folder:
+   ```
+   cd interface
+   ```
+
+2. Install Node.js dependencies:
+   ```
+   yarn install
+   ```
+
+3. Run the Next.js development server:
+   ```
+   yarn dev
+   ```
+
+   The app will be available at `http://localhost:3000`
+
+## Development
+
+To run both the backend and frontend simultaneously, use the provided PowerShell script:
+
+```
+.\scripts\dev.ps1
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+This will start the FastAPI server on port 8000 and the Next.js app on port 3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Features
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- User registration and management
+- Face-based attendance tracking (future integration with face-api.js)
+- Task creation and management
 
-## Learn More
+## API Documentation
 
-To learn more about Next.js, take a look at the following resources:
+Once the backend is running, visit `http://127.0.0.1:8000/docs` for interactive API documentation using Swagger UI.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Contributing
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## License
