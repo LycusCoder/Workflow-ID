@@ -92,7 +92,7 @@ $projectRoot = Split-Path -Parent $scriptRoot
 $backendJob = Start-Job -ScriptBlock {
     param ($path)
     Push-Location "$path\backend"
-    uvicorn main:app --reload --host 127.0.0.1 --port 8000
+    uvicorn main:app --reload --host 127.0.0.1 --port 8001
     Pop-Location
 } -ArgumentList $projectRoot
 
@@ -104,7 +104,7 @@ $frontendJob = Start-Job -ScriptBlock {
     Pop-Location
 } -ArgumentList $projectRoot
 
-Write-Host "✅ Backend running on http://127.0.0.1:8000"
+Write-Host "✅ Backend running on http://127.0.0.1:8001"
 Write-Host "✅ Frontend running on http://localhost:3000"
 Write-Host ""
 Write-Host "Press Ctrl+C to stop both servers"

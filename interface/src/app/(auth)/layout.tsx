@@ -13,7 +13,8 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
     "Where innovation meets productivity"
   ]
 
-  const randomQuote = quotes[Math.floor(Math.random() * quotes.length)]
+  // Use consistent quote for SSR: use fixed quote
+  const randomQuote = "Where innovation meets productivity"
 
   return (
     <div className="min-h-screen flex">
