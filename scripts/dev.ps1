@@ -1,122 +1,179 @@
+# =============================================================================
+# WorkFlow-ID Development Server Script
+# =============================================================================
+# Improved version with better error handling and modern frontend setup
+# =============================================================================
+
+Write-Host ""
+Write-Host "╔═══════════════════════════════════════════════════╗" -ForegroundColor Cyan
+Write-Host "║        🚀 WorkFlow-ID Development Setup 🚀        ║" -ForegroundColor Cyan
+Write-Host "╚═══════════════════════════════════════════════════╝" -ForegroundColor Cyan
+Write-Host ""
+
 # --- Environment Setup ---
 $DevEnvFile = ".env.development"
 $TargetEnvFile = ".env"
+
+Write-Host "[1/6] 🔧 Checking environment configuration..." -ForegroundColor Yellow
 if (Test-Path $DevEnvFile) {
     Copy-Item -Path $DevEnvFile -Destination $TargetEnvFile -Force
-    Write-Host "✅ Development environment (.env.development) loaded."
+    Write-Host "      ✅ Development environment loaded" -ForegroundColor Green
 } else {
-    Write-Host "⚠️ .env.development not found. Using default settings." -ForegroundColor Yellow
+    Write-Host "      ⚠️  .env.development not found, using defaults" -ForegroundColor Yellow
 }
-Write-Host ""
 
 # --- Virtual Environment Setup ---
 $VenvPath = ".venv"
 
+Write-Host ""
+Write-Host "[2/6] 🐍 Checking Python virtual environment..." -ForegroundColor Yellow
+
 if (Test-Path $VenvPath) {
-    Write-Host "✅ Virtual environment found!"
+    Write-Host "      ✅ Virtual environment found" -ForegroundColor Green
 } else {
-    Write-Host "Virtual environment not found. Checking Python version..."
+    Write-Host "      📦 Creating virtual environment..."
     try {
         $pythonVersion = (python --version 2>&1).Split(" ")[1]
         $majorMinor = $pythonVersion.Substring(0, 4)
 
         if ($majorMinor -ne "3.11") {
             Write-Host ""
-            Write-Host "❌ Python version mismatch!" -ForegroundColor Red
-            Write-Host "Current version: $pythonVersion"
-            Write-Host "Required version: 3.11.x"
-            Write-Host ""
-            $choice = Read-Host "Continue with Python $pythonVersion? (y/n)"
+            Write-Host "      ⚠️  Python version mismatch!" -ForegroundColor Red
+            Write-Host "         Current: $pythonVersion | Required: 3.11.x"
+            $choice = Read-Host "      Continue anyway? (y/n)"
             if ($choice -ne 'y') {
-                Write-Host "Setup cancelled."
+                Write-Host "      ❌ Setup cancelled" -ForegroundColor Red
                 exit
             }
-            Write-Host "⚠️  Proceeding with Python $pythonVersion (not recommended)" -ForegroundColor Yellow
+            Write-Host "      ⚠️  Proceeding with Python $pythonVersion" -ForegroundColor Yellow
         } else {
-            Write-Host "✅ Python $pythonVersion is correct!"
+            Write-Host "      ✅ Python $pythonVersion detected" -ForegroundColor Green
         }
 
-        Write-Host "Creating Python virtual environment..."
         python -m venv $VenvPath
+        Write-Host "      ✅ Virtual environment created" -ForegroundColor Green
     } catch {
-        Write-Host "❌ Python is not installed or not in PATH." -ForegroundColor Red
-        Write-Host "Please install Python 3.11 from: https://www.python.org/downloads/"
+        Write-Host "      ❌ Python not found!" -ForegroundColor Red
+        Write-Host "         Install from: https://www.python.org/downloads/"
         exit
     }
 }
 
 # --- Activate Virtual Environment ---
+Write-Host ""
+Write-Host "[3/6] 🔌 Activating virtual environment..." -ForegroundColor Yellow
 $activateScript = Join-Path $VenvPath "Scripts\Activate.ps1"
 if (Test-Path $activateScript) {
     . $activateScript
-    Write-Host "✅ Virtual environment activated."
+    Write-Host "      ✅ Virtual environment activated" -ForegroundColor Green
 } else {
-    Write-Host "❌ Activation script not found at $activateScript" -ForegroundColor Red
+    Write-Host "      ❌ Activation script not found" -ForegroundColor Red
     exit
 }
 
 # --- Dependency Checks ---
-# Check pip dependencies
-Write-Host "Checking pip dependencies..."
-pip install -r backend/requirements.txt --quiet
-Write-Host "✅ Python dependencies are up to date."
+Write-Host ""
+Write-Host "[4/6] 📦 Checking dependencies..." -ForegroundColor Yellow
 
-# Check yarn dependencies
-Write-Host "Checking yarn dependencies..."
-$nodeModulesPath = "interface\node_modules"
-if (-not (Test-Path $nodeModulesPath)) {
-    Write-Host "Installing frontend dependencies (this may take a moment)..."
-    Push-Location "interface"
-    yarn install --silent
-    Pop-Location
-    Write-Host "✅ Frontend dependencies installed"
+# Check backend dependencies
+Write-Host "      🐍 Installing Python dependencies..."
+pip install -r backend/requirements.txt --quiet 2>&1 | Out-Null
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "      ✅ Backend dependencies ready" -ForegroundColor Green
 } else {
-    Write-Host "✅ Frontend dependencies found"
+    Write-Host "      ⚠️  Some backend dependencies may have issues" -ForegroundColor Yellow
 }
 
-Write-Host "✅ All dependencies ready"
-Write-Host ""
+# Check frontend dependencies  
+Write-Host "      ⚛️  Checking frontend dependencies..."
+$nodeModulesPath = "interface\node_modules"
+if (-not (Test-Path $nodeModulesPath)) {
+    Write-Host "      📥 Installing frontend dependencies (Vite + React)..."
+    Push-Location "interface"
+    npm install --silent 2>&1 | Out-Null
+    Pop-Location
+    Write-Host "      ✅ Frontend dependencies installed" -ForegroundColor Green
+} else {
+    Write-Host "      ✅ Frontend dependencies found" -ForegroundColor Green
+}
 
 # --- Log Setup ---
+Write-Host ""
+Write-Host "[5/6] 📝 Setting up logs..." -ForegroundColor Yellow
 $LogDir = "logs"
 if (-not (Test-Path $LogDir)) {
     New-Item -Path $LogDir -ItemType Directory | Out-Null
 }
+Write-Host "      ✅ Log directory ready" -ForegroundColor Green
 
 # --- Start Servers ---
-Write-Host "🚀 Starting servers..."
+Write-Host ""
+Write-Host "[6/6] 🚀 Starting development servers..." -ForegroundColor Yellow
+Write-Host ""
+
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $projectRoot = Split-Path -Parent $scriptRoot
 
 # Start backend
+Write-Host "      🔧 Starting FastAPI backend..."
 $backendJob = Start-Job -ScriptBlock {
     param ($path)
-    Push-Location "$path\backend"
+    Set-Location "$path\backend"
     uvicorn main:app --reload --host 127.0.0.1 --port 8001
-    Pop-Location
 } -ArgumentList $projectRoot
+
+Start-Sleep -Seconds 2
 
 # Start frontend
+Write-Host "      ⚛️  Starting Vite frontend..."
 $frontendJob = Start-Job -ScriptBlock {
     param ($path)
-    Push-Location "$path\interface"
-    yarn dev
-    Pop-Location
+    Set-Location "$path\interface"
+    npm run dev
 } -ArgumentList $projectRoot
 
-Write-Host "✅ Backend running on http://127.0.0.1:8001"
-Write-Host "✅ Frontend running on http://localhost:3000"
-Write-Host ""
-Write-Host "Press Ctrl+C to stop both servers"
+Start-Sleep -Seconds 3
 
-# Wait for jobs and show output
+Write-Host ""
+Write-Host "╔═══════════════════════════════════════════════════╗" -ForegroundColor Green
+Write-Host "║              ✅ SERVERS ARE RUNNING ✅             ║" -ForegroundColor Green
+Write-Host "╠═══════════════════════════════════════════════════╣" -ForegroundColor Green
+Write-Host "║                                                   ║" -ForegroundColor Green
+Write-Host "║  🔹 Backend (FastAPI):                            ║" -ForegroundColor Green
+Write-Host "║     http://127.0.0.1:8001                         ║" -ForegroundColor Cyan
+Write-Host "║     http://127.0.0.1:8001/docs (Swagger UI)       ║" -ForegroundColor Cyan
+Write-Host "║                                                   ║" -ForegroundColor Green
+Write-Host "║  🔹 Frontend (Vite + React):                      ║" -ForegroundColor Green
+Write-Host "║     http://localhost:5173                         ║" -ForegroundColor Cyan
+Write-Host "║                                                   ║" -ForegroundColor Green
+Write-Host "╚═══════════════════════════════════════════════════╝" -ForegroundColor Green
+Write-Host ""
+Write-Host "📌 Press Ctrl+C to stop all servers" -ForegroundColor Yellow
+Write-Host ""
+
+# Monitor jobs and show output
 try {
-    Receive-Job -Job $backendJob -Wait
-    Receive-Job -Job $frontendJob -Wait
+    while ($true) {
+        $backendState = (Get-Job -Id $backendJob.Id).State
+        $frontendState = (Get-Job -Id $frontendJob.Id).State
+        
+        if ($backendState -eq "Failed" -or $frontendState -eq "Failed") {
+            Write-Host ""
+            Write-Host "❌ One or more servers failed!" -ForegroundColor Red
+            Receive-Job -Job $backendJob
+            Receive-Job -Job $frontendJob
+            break
+        }
+        
+        Start-Sleep -Seconds 2
+    }
 } catch {
-    Write-Host "🛑 Stopping servers..."
+    Write-Host ""
+    Write-Host "🛑 Shutting down servers..." -ForegroundColor Yellow
 } finally {
-    # Clean up
-    Get-Job | Stop-Job | Remove-Job
-    Write-Host "✅ Servers stopped."
+    # Clean up jobs
+    Get-Job | Stop-Job
+    Get-Job | Remove-Job
+    Write-Host "✅ All servers stopped cleanly" -ForegroundColor Green
+    Write-Host ""
 }
