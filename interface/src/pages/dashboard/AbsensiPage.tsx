@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { attendanceApi } from '@/lib/api'
 import { useFaceDetection } from '@/hooks/useFaceDetection'
@@ -28,13 +28,25 @@ interface AttendanceStats {
   on_time_days: number
   late_days: number
   average_work_hours: number
-  attendance_rate: number
+  attendance_rate: number // Properti ini belum dipakai di UI, tapi bagus ada.
+}
+
+// Fungsi pembantu untuk format waktu
+const formatTime = (timeString: string) => {
+  if (!timeString) return 'N/A'
+  try {
+    // Asumsi format timeString adalah HH:mm:ss atau HH:mm:ss.SSSSSS
+    // Kita ambil jam dan menit saja
+    const [hours, minutes] = timeString.split(':')
+    return `${hours}:${minutes}`
+  } catch {
+    return timeString // Fallback jika parsing gagal
+  }
 }
 
 export default function AbsensiPage() {
   const { user } = useAuth()
   
-  // Use face detection hook (sama seperti di register/login)
   const {
     modelsLoaded,
     isScanning,
@@ -47,88 +59,165 @@ export default function AbsensiPage() {
   } = useFaceDetection()
   
   const [loading, setLoading] = useState(false)
-  const [todayAttendance, setTodayAttendance] = useState<any>(null)
+  const [todayAttendance, setTodayAttendance] = useState<AttendanceRecord | null>(null) // Ubah any ke interface
   const [attendanceHistory, setAttendanceHistory] = useState<AttendanceRecord[]>([])
   const [stats, setStats] = useState<AttendanceStats | null>(null)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
   const [isCheckingIn, setIsCheckingIn] = useState(false)
   const [checkInData, setCheckInData] = useState<any>(null)
 
+  // Auto-detect face setiap 500ms saat scanning aktif
   useEffect(() => {
-    fetchAttendanceData()
-  }, [user])
+    if (!isScanning) return
 
-  const fetchAttendanceData = async () => {
+    console.log('🔄 [AUTO-DETECT] Memulai loop auto-detection...')
+    
+    const interval = setInterval(async () => {
+      try {
+        await detectFace()
+      } catch (error) {
+        console.error('❌ [AUTO-DETECT] Error:', error)
+      }
+    }, 500) // Cek setiap 500ms
+
+    return () => {
+      console.log('🛑 [AUTO-DETECT] Menghentikan loop auto-detection')
+      clearInterval(interval)
+    }
+  }, [isScanning, detectFace])
+
+  // Gunakan useCallback untuk memoize fungsi
+  const fetchAttendanceData = useCallback(async () => {
     if (!user) return
     try {
       setLoading(true)
-      const historyRes = await attendanceApi.getHistory(user.id, {
-        start_date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-      })
+      const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      const historyRes = await attendanceApi.getHistory(user.id, { start_date: startDate })
+      
       if (historyRes.data) {
-        setAttendanceHistory(historyRes.data.history || [])
+        // Cast hasil history ke AttendanceRecord[]
+        const history: AttendanceRecord[] = historyRes.data.history || []
+        setAttendanceHistory(history)
+        
         const today = new Date().toISOString().split('T')[0]
-        const todayRecord = historyRes.data.history.find((r: any) => r.date === today)
+        const todayRecord = history.find(r => r.date === today)
         setTodayAttendance(todayRecord || null)
       }
+      
       const statsRes = await attendanceApi.getStats(user.id)
       if (statsRes.data) {
         setStats(statsRes.data)
       }
     } catch (error: any) {
       console.error('Error fetching attendance:', error)
+      setMessage({ type: 'error', text: 'Gagal memuat data absensi.' })
     } finally {
       setLoading(false)
     }
-  }
+  }, [user])
+
+  useEffect(() => {
+    fetchAttendanceData()
+  }, [user, fetchAttendanceData])
 
   const handleCheckIn = async () => {
+    console.log('═══════════════════════════════════════════════════════════')
+    console.log('🚀 [CHECK-IN START] Proses check-in dimulai...')
+    console.log('⏰ Waktu:', new Date().toLocaleString('id-ID'))
+    console.log('═══════════════════════════════════════════════════════════')
+    
     if (!user) {
+      console.error('❌ [CHECK-IN ABORT] User tidak ditemukan!')
       setMessage({ type: 'error', text: 'User tidak ditemukan' })
       return
     }
     
+    console.log('👤 [CHECK-IN USER] User ID:', user.id)
+    console.log('👤 [CHECK-IN USER] User Name:', user.name)
+    console.log('👤 [CHECK-IN USER] User Email:', user.email)
+    
     try {
-      console.log('[CHECK-IN] Detecting face...')
+      console.log('\n🎥 [CHECK-IN STEP 1] Memulai deteksi wajah...')
+      console.log('📹 Video Ref:', videoRef.current ? 'Ready ✅' : 'Not Ready ❌')
+      console.log('🤖 Models Loaded:', modelsLoaded ? 'Yes ✅' : 'No ❌')
+      console.log('👁️ Face Detected State:', faceDetected ? 'Yes ✅' : 'No ❌')
+      
       const result = await detectFace()
       
+      console.log('\n📊 [CHECK-IN STEP 2] Hasil deteksi wajah:')
+      console.log('Result:', result)
+      console.log('Has Descriptor:', result?.descriptor ? 'Yes ✅' : 'No ❌')
+      
       if (!result || !result.descriptor) {
-        setMessage({ type: 'error', text: 'Wajah tidak terdeteksi. Coba lagi.' })
+        console.error('❌ [CHECK-IN ERROR] Deteksi wajah gagal!')
+        console.error('   - Result is null:', !result)
+        console.error('   - Descriptor is null:', !result?.descriptor)
+        setMessage({ type: 'error', text: 'Wajah tidak terdeteksi. Pastikan wajah terlihat jelas di kamera.' })
         return
       }
       
-      console.log('[CHECK-IN] Face detected, sending to backend...')
+      const faceEmbeddingArray = Array.from(result.descriptor)
+      
+      console.log('\n🧬 [CHECK-IN STEP 3] Face Embedding berhasil dikonversi:')
+      console.log('   - Total dimensi:', faceEmbeddingArray.length)
+      console.log('   - 10 nilai pertama:', faceEmbeddingArray.slice(0, 10).map(n => n.toFixed(4)).join(', '))
+      console.log('   - Min value:', Math.min(...faceEmbeddingArray).toFixed(4))
+      console.log('   - Max value:', Math.max(...faceEmbeddingArray).toFixed(4))
+      
+      console.log('\n📤 [CHECK-IN STEP 4] Mengirim data ke backend...')
       setLoading(true)
       setMessage(null)
       
       const payload = {
         user_id: user.id,
-        face_embedding: JSON.stringify(Array.from(result.descriptor)),
+        face_embedding: JSON.stringify(faceEmbeddingArray),
         location: 'Office'
       }
       
+      console.log('📦 Payload:')
+      console.log('   - user_id:', payload.user_id)
+      console.log('   - location:', payload.location)
+      console.log('   - face_embedding length:', payload.face_embedding.length, 'characters')
+      
       const response = await attendanceApi.checkIn(payload)
       
-      console.log('[CHECK-IN] Response:', response)
+      console.log('\n📥 [CHECK-IN STEP 5] Response dari backend:')
+      console.log('Response:', response)
       
       if (response.error) {
-        console.error('[CHECK-IN] Error from backend:', response.error)
+        console.error('❌ [CHECK-IN ERROR] Backend mengembalikan error!')
+        console.error('   Error message:', response.error)
         setMessage({ type: 'error', text: response.error })
       } else {
-        console.log('[CHECK-IN] Success! Data:', response.data)
-        // Show sci-fi notification popup
+        console.log('✅ [CHECK-IN SUCCESS] Check-in berhasil!')
+        console.log('📊 Data response:', response.data)
+        console.log('   - Message:', response.data?.message)
+        console.log('   - User Name:', response.data?.user_name)
+        console.log('   - Check-in Time:', response.data?.check_in_time)
+        console.log('   - Status:', response.data?.status)
+        console.log('   - Similarity:', response.data?.similarity + '%')
+        
         setCheckInData(response.data)
         fetchAttendanceData()
-        stopDetection()
+        stopScanning()
         setIsCheckingIn(false)
+        setMessage({ type: 'success', text: response.data.message || 'Check-in Berhasil!' })
       }
     } catch (error: any) {
-      console.error('[CHECK-IN] Exception:', error)
-      console.error('[CHECK-IN] Error message:', error.message)
-      console.error('[CHECK-IN] Error stack:', error.stack)
-      setMessage({ type: 'error', text: 'Gagal check-in. Silakan coba lagi.' })
+      console.error('\n💥 [CHECK-IN EXCEPTION] Exception tertangkap!')
+      console.error('   Error name:', error?.name)
+      console.error('   Error message:', error?.message)
+      console.error('   Error stack:', error?.stack)
+      console.error('   Full error:', error)
+      
+      setMessage({ 
+        type: 'error', 
+        text: `Gagal check-in: ${error?.message || 'Masalah koneksi atau kamera'}` 
+      })
     } finally {
       setLoading(false)
+      console.log('\n🏁 [CHECK-IN END] Proses check-in selesai.')
+      console.log('═══════════════════════════════════════════════════════════\n')
     }
   }
 
@@ -143,7 +232,7 @@ export default function AbsensiPage() {
       if (response.error) {
         setMessage({ type: 'error', text: response.error })
       } else {
-        setMessage({ type: 'success', text: response.data.message })
+        setMessage({ type: 'success', text: response.data.message || 'Check-out berhasil!' })
         fetchAttendanceData()
       }
     } catch (error: any) {
@@ -154,14 +243,37 @@ export default function AbsensiPage() {
   }
 
   const startCheckIn = async () => {
+    console.log('\n🎬 [START CHECK-IN] Tombol check-in diklik!')
+    console.log('🤖 Models Loaded:', modelsLoaded ? 'Yes ✅' : 'No ❌')
+    
+    if (!modelsLoaded) {
+      console.error('❌ [START CHECK-IN ERROR] Model belum dimuat!')
+      setMessage({ type: 'error', text: 'Model Face Recognition belum termuat. Tunggu sebentar...' })
+      return
+    }
+    
+    console.log('📹 [START CHECK-IN] Memulai scanning...')
     setIsCheckingIn(true)
     setMessage(null)
-    await startScanning()
+    
+    try {
+      await startScanning()
+      console.log('✅ [START CHECK-IN] Kamera berhasil diaktifkan!')
+    } catch (error: any) {
+      console.error('❌ [START CHECK-IN ERROR] Gagal memulai kamera:', error)
+      setMessage({ type: 'error', text: 'Gagal mengakses kamera. Pastikan izin kamera diaktifkan.' })
+      setIsCheckingIn(false)
+    }
   }
 
+  // Fungsi yang terpotong di input kamu, kita perbaiki di sini
   const cancelCheckIn = () => {
+    console.log('🛑 [CANCEL CHECK-IN] User membatalkan check-in')
     setIsCheckingIn(false)
     stopScanning()
+    console.log('📹 [CANCEL CHECK-IN] Kamera dihentikan')
+  }
+  
   const getStatusBadge = (status: string) => {
     const styles = {
       on_time: 'bg-green-100 text-green-700',
@@ -175,9 +287,11 @@ export default function AbsensiPage() {
       absent: 'Alpha',
       leave: 'Izin'
     }
+    const safeStatus = status.toLowerCase() as keyof typeof styles
+    
     return (
-      <span className={`px-3 py-1 rounded-full text-xs font-medium ${styles[status as keyof typeof styles]}`}>
-        {labels[status as keyof typeof labels]}
+      <span className={`px-3 py-1 rounded-full text-xs font-medium ${styles[safeStatus] || styles.absent}`}>
+        {labels[safeStatus] || 'N/A'}
       </span>
     )
   }
@@ -255,7 +369,7 @@ export default function AbsensiPage() {
                 <ChartBarIcon className="w-6 h-6 text-purple-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-slate-900">{stats?.average_work_hours.toFixed(1) || '0.0'}h</p>
+                <p className="text-2xl font-bold text-slate-900">{stats?.average_work_hours ? stats.average_work_hours.toFixed(1) + 'h' : '0.0h'}</p>
                 <p className="text-sm text-slate-600">Rata-rata Jam</p>
               </div>
             </div>
@@ -270,7 +384,7 @@ export default function AbsensiPage() {
         <CardContent className="space-y-4">
           {loading && !isCheckingIn ? (
             <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-indigo-600 border-b-2 mx-auto"></div>
               <p className="mt-4 text-slate-600">Memuat data...</p>
             </div>
           ) : todayAttendance ? (
@@ -281,8 +395,8 @@ export default function AbsensiPage() {
                   <div>
                     <p className="font-semibold text-slate-900">{todayAttendance.date}</p>
                     <p className="text-sm text-slate-600">
-                      Check-in: {todayAttendance.check_in_time} 
-                      {todayAttendance.check_out_time && ` | Check-out: ${todayAttendance.check_out_time}`}
+                      Check-in: {formatTime(todayAttendance.check_in_time)} 
+                      {todayAttendance.check_out_time && ` | Check-out: ${formatTime(todayAttendance.check_out_time)}`}
                     </p>
                   </div>
                 </div>
@@ -298,7 +412,7 @@ export default function AbsensiPage() {
                   Check-out Sekarang
                 </Button>
               )}
-              {todayAttendance.work_hours && (
+              {todayAttendance.work_hours !== null && ( // Cek agar 0 jam juga tampil
                 <div className="p-4 bg-green-50 rounded-xl border border-green-200">
                   <p className="text-sm text-green-700">
                     ✅ Total jam kerja hari ini: <span className="font-bold">{todayAttendance.work_hours.toFixed(2)} jam</span>
@@ -443,9 +557,9 @@ export default function AbsensiPage() {
                     <div>
                       <p className="font-semibold text-slate-900">{record.date}</p>
                       <p className="text-sm text-slate-600">
-                        Check-in: {record.check_in_time}
-                        {record.check_out_time && ` | Check-out: ${record.check_out_time}`}
-                        {record.work_hours && ` | ${record.work_hours.toFixed(1)} jam`}
+                        Check-in: {formatTime(record.check_in_time)}
+                        {record.check_out_time && ` | Check-out: ${formatTime(record.check_out_time)}`}
+                        {record.work_hours !== null && ` | ${record.work_hours.toFixed(1)} jam`}
                       </p>
                     </div>
                   </div>

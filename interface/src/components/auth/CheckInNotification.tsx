@@ -17,235 +17,174 @@ interface CheckInNotificationProps {
 }
 
 const CheckInNotification: React.FC<CheckInNotificationProps> = ({ data, onClose }) => {
-  const [isVisible, setIsVisible] = useState(false);
-  const [scanning, setScanning] = useState(true);
+  const [isVisible, setIsVisible] = useState(false)
 
   useEffect(() => {
     // Trigger animation
-    setTimeout(() => setIsVisible(true), 50);
+    setTimeout(() => setIsVisible(true), 50)
     
-    // Stop scanning animation after 2s
-    const scanTimeout = setTimeout(() => setScanning(false), 2000);
-    
-    // Auto close after 6s
+    // Auto close after 5s
     const closeTimeout = setTimeout(() => {
-      setIsVisible(false);
-      setTimeout(onClose, 300);
-    }, 6000);
+      setIsVisible(false)
+      setTimeout(onClose, 300)
+    }, 5000)
 
     return () => {
-      clearTimeout(scanTimeout);
-      clearTimeout(closeTimeout);
-    };
-  }, [onClose]);
+      clearTimeout(closeTimeout)
+    }
+  }, [onClose])
 
   const handleClose = () => {
-    setIsVisible(false);
-    setTimeout(onClose, 300);
-  };
+    setIsVisible(false)
+    setTimeout(onClose, 300)
+  }
 
   const getGenderLabel = (gender: string) => {
     switch (gender) {
-      case 'male': return 'LAKI-LAKI';
-      case 'female': return 'PEREMPUAN';
-      default: return 'LAINNYA';
+      case 'male': return 'Laki-laki'
+      case 'female': return 'Perempuan'
+      default: return 'Lainnya'
     }
-  };
-
-  const getGenderColor = (gender: string) => {
-    switch (gender) {
-      case 'male': return 'from-blue-500 to-cyan-500';
-      case 'female': return 'from-pink-500 to-purple-500';
-      default: return 'from-gray-500 to-slate-500';
-    }
-  };
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'ontime': return 'text-green-400';
-      case 'late': return 'text-yellow-400';
-      default: return 'text-red-400';
+      case 'ontime': return 'text-green-600'
+      case 'late': return 'text-yellow-600'
+      default: return 'text-red-600'
     }
-  };
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div 
-        className={`absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity duration-300 ${
+        className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${
           isVisible ? 'opacity-100' : 'opacity-0'
         }`}
         onClick={handleClose}
       />
 
-      {/* Notification Card */}
+      {/* Notification Card - Modern Minimalist */}
       <div 
         className={`relative w-full max-w-md transform transition-all duration-500 ${
           isVisible ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
         }`}
       >
-        {/* Scanning Animation Overlay */}
-        {scanning && (
-          <div className="absolute inset-0 z-10 overflow-hidden rounded-2xl pointer-events-none">
-            <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/20 via-transparent to-transparent animate-pulse" />
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent animate-scan-line" />
-            <div className="absolute inset-0 grid grid-cols-12 gap-px opacity-20">
-              {[...Array(48)].map((_, i) => (
-                <div 
-                  key={i} 
-                  className="h-full bg-cyan-500/50 animate-pulse"
-                  style={{ animationDelay: `${i * 0.05}s` }}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Main Card */}
-        <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl border-2 border-cyan-500/50 shadow-2xl shadow-cyan-500/20 overflow-hidden">
-          {/* Animated Border Glow */}
-          <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-cyan-500/0 via-cyan-500/30 to-cyan-500/0 animate-border-glow" />
-          
+        <div className="relative bg-white rounded-2xl shadow-2xl overflow-hidden">
           {/* Close Button */}
           <button
             onClick={handleClose}
-            className="absolute top-4 right-4 z-20 p-2 rounded-lg bg-slate-800/50 hover:bg-slate-700/50 border border-slate-600/50 transition-all group"
+            className="absolute top-4 right-4 z-20 p-2 rounded-full hover:bg-gray-100 transition-colors group"
           >
-            <X className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors" />
+            <X className="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors" />
           </button>
 
           {/* Content */}
-          <div className="relative z-10 p-8">
+          <div className="p-8">
             {/* Success Icon */}
             <div className="flex justify-center mb-6">
               <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full blur-xl animate-pulse" />
-                <div className="relative w-20 h-20 rounded-full bg-gradient-to-r from-green-500 to-emerald-500 flex items-center justify-center">
-                  <Sparkles className="w-10 h-10 text-white animate-spin-slow" />
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center shadow-lg">
+                  <Sparkles className="w-10 h-10 text-white" />
                 </div>
               </div>
             </div>
 
             {/* Success Message */}
-            <div className="text-center mb-6">
-              <h3 className="text-2xl font-bold text-white mb-2">
-                {data.message}
+            <div className="text-center mb-8">
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                Check-in Berhasil!
               </h3>
-              <p className="text-cyan-400 text-sm font-mono">
-                VERIFIKASI BERHASIL • SIMILARITY {data.similarity}%
+              <p className="text-gray-500 text-sm">
+                Similarity {data.similarity}% • {data.message}
               </p>
             </div>
 
-            {/* User Info Grid */}
+            {/* User Info - Clean Cards */}
             <div className="space-y-3 mb-6">
               {/* Name */}
-              <div className="flex items-center gap-3 p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
-                <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-500/30">
-                  <User className="w-5 h-5 text-blue-400" />
+              <div className="flex items-center gap-3 p-4 rounded-xl bg-gray-50 border border-gray-100">
+                <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                  <User className="w-5 h-5 text-blue-600" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-xs text-slate-400 font-mono mb-1">NAMA</p>
-                  <p className="text-white font-semibold">{data.user_name}</p>
+                  <p className="text-xs text-gray-500 mb-0.5">Nama</p>
+                  <p className="text-gray-900 font-semibold">{data.user_name}</p>
                 </div>
               </div>
 
               {/* Gender */}
-              <div className="flex items-center gap-3 p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
-                <div className={`p-2 rounded-lg bg-gradient-to-br ${getGenderColor(data.user_gender)}/20 border border-${data.user_gender === 'male' ? 'blue' : data.user_gender === 'female' ? 'pink' : 'gray'}-500/30`}>
-                  <div className="w-5 h-5 flex items-center justify-center text-lg">
+              <div className="flex items-center gap-3 p-4 rounded-xl bg-gray-50 border border-gray-100">
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                  data.user_gender === 'male' 
+                    ? 'bg-blue-100' 
+                    : data.user_gender === 'female'
+                    ? 'bg-pink-100'
+                    : 'bg-gray-200'
+                }`}>
+                  <div className={`text-xl ${
+                    data.user_gender === 'male' 
+                      ? 'text-blue-600' 
+                      : data.user_gender === 'female'
+                      ? 'text-pink-600'
+                      : 'text-gray-600'
+                  }`}>
                     {data.user_gender === 'male' ? '♂' : data.user_gender === 'female' ? '♀' : '⚲'}
                   </div>
                 </div>
                 <div className="flex-1">
-                  <p className="text-xs text-slate-400 font-mono mb-1">JENIS KELAMIN</p>
-                  <p className={`font-semibold bg-gradient-to-r ${getGenderColor(data.user_gender)} bg-clip-text text-transparent`}>
+                  <p className="text-xs text-gray-500 mb-0.5">Jenis Kelamin</p>
+                  <p className="text-gray-900 font-semibold">
                     {getGenderLabel(data.user_gender)}
                   </p>
                 </div>
               </div>
 
-              {/* Time */}
-              <div className="flex items-center gap-3 p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
-                <div className="p-2 rounded-lg bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-500/30">
-                  <Clock className="w-5 h-5 text-green-400" />
+              {/* Time & Date */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center gap-3 p-4 rounded-xl bg-gray-50 border border-gray-100">
+                  <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
+                    <Clock className="w-5 h-5 text-green-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-gray-500 mb-0.5">Waktu</p>
+                    <p className={`font-bold text-sm ${getStatusColor(data.status)}`}>
+                      {data.check_in_time}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <p className="text-xs text-slate-400 font-mono mb-1">WAKTU CHECK-IN</p>
-                  <p className={`font-bold ${getStatusColor(data.status)}`}>
-                    {data.check_in_time}
-                  </p>
-                </div>
-              </div>
 
-              {/* Date */}
-              <div className="flex items-center gap-3 p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
-                <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30">
-                  <Calendar className="w-5 h-5 text-purple-400" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs text-slate-400 font-mono mb-1">TANGGAL</p>
-                  <p className="text-white font-semibold">{data.date}</p>
+                <div className="flex items-center gap-3 p-4 rounded-xl bg-gray-50 border border-gray-100">
+                  <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
+                    <Calendar className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-gray-500 mb-0.5">Tanggal</p>
+                    <p className="text-gray-900 font-semibold text-sm truncate">{data.date}</p>
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* Status Badge */}
             <div className="text-center">
-              <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${
+              <div className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-full font-medium text-sm ${
                 data.status === 'ontime' 
-                  ? 'bg-green-500/20 border border-green-500/50 text-green-400' 
+                  ? 'bg-green-50 text-green-700 border border-green-200' 
                   : data.status === 'late'
-                  ? 'bg-yellow-500/20 border border-yellow-500/50 text-yellow-400'
-                  : 'bg-red-500/20 border border-red-500/50 text-red-400'
+                  ? 'bg-yellow-50 text-yellow-700 border border-yellow-200'
+                  : 'bg-red-50 text-red-700 border border-red-200'
               }`}>
-                <div className="w-2 h-2 rounded-full bg-current animate-pulse" />
-                <span className="text-sm font-mono font-bold uppercase">
-                  {data.status === 'ontime' ? 'TEPAT WAKTU' : data.status === 'late' ? 'TERLAMBAT' : 'ABSEN'}
+                <div className="w-2 h-2 rounded-full bg-current"></div>
+                <span>
+                  {data.status === 'ontime' ? 'Tepat Waktu' : data.status === 'late' ? 'Terlambat' : 'Absen'}
                 </span>
               </div>
             </div>
           </div>
-
-          {/* Bottom Glow */}
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-cyan-500 to-transparent" />
         </div>
-
-        {/* Corner Accents */}
-        <div className="absolute -top-2 -left-2 w-4 h-4 border-t-2 border-l-2 border-cyan-400 rounded-tl-lg" />
-        <div className="absolute -top-2 -right-2 w-4 h-4 border-t-2 border-r-2 border-cyan-400 rounded-tr-lg" />
-        <div className="absolute -bottom-2 -left-2 w-4 h-4 border-b-2 border-l-2 border-cyan-400 rounded-bl-lg" />
-        <div className="absolute -bottom-2 -right-2 w-4 h-4 border-b-2 border-r-2 border-cyan-400 rounded-br-lg" />
       </div>
-
-      <style>{`
-        @keyframes scan-line {
-          0% { transform: translateY(0); opacity: 0; }
-          50% { opacity: 1; }
-          100% { transform: translateY(400px); opacity: 0; }
-        }
-        
-        @keyframes border-glow {
-          0%, 100% { opacity: 0.3; }
-          50% { opacity: 0.6; }
-        }
-        
-        @keyframes spin-slow {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        
-        .animate-scan-line {
-          animation: scan-line 2s ease-in-out infinite;
-        }
-        
-        .animate-border-glow {
-          animation: border-glow 2s ease-in-out infinite;
-        }
-        
-        .animate-spin-slow {
-          animation: spin-slow 3s linear infinite;
-        }
-      `}</style>
     </div>
   );
 };

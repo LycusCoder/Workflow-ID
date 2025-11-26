@@ -7,6 +7,7 @@ export const API_ENDPOINTS = {
   attendance: `${API_BASE_URL}/attendance`,
   tasks: `${API_BASE_URL}/tasks`,
   reports: `${API_BASE_URL}/reports`,
+  events: `${API_BASE_URL}/events`,
   auth: {
     login: `${API_BASE_URL}/auth/login`,
     register: `${API_BASE_URL}/auth/register`,
@@ -19,6 +20,7 @@ export const API_ENDPOINTS = {
     taskDistribution: `${API_BASE_URL}/dashboard/task-distribution`,
     recentActivities: `${API_BASE_URL}/dashboard/recent-activities`,
     productivityTrend: `${API_BASE_URL}/dashboard/productivity-trend`,
+    upcomingEvents: `${API_BASE_URL}/events/upcoming`,
   },
 } as const
 

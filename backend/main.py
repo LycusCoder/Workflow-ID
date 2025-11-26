@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, extract
-from models import get_db, User, Attendance, Task
+from models import get_db, User, Attendance, Task, Event
 from pydantic import BaseModel
 from typing import List, Optional, Dict
 import datetime
@@ -275,21 +275,35 @@ def calculate_embedding_similarity(embedding1: str, embedding2: str) -> float:
         import json
         import numpy as np
         
+        logger.info(f"[SIMILARITY] Calculating similarity...")
+        logger.info(f"[SIMILARITY] Embedding1 length: {len(embedding1)} chars")
+        logger.info(f"[SIMILARITY] Embedding2 length: {len(embedding2)} chars")
+        
         emb1 = np.array(json.loads(embedding1))
         emb2 = np.array(json.loads(embedding2))
+        
+        logger.info(f"[SIMILARITY] Parsed emb1 shape: {emb1.shape}, dtype: {emb1.dtype}")
+        logger.info(f"[SIMILARITY] Parsed emb2 shape: {emb2.shape}, dtype: {emb2.dtype}")
+        logger.info(f"[SIMILARITY] Emb1 sample (10): {emb1[:10].tolist()}")
+        logger.info(f"[SIMILARITY] Emb2 sample (10): {emb2[:10].tolist()}")
         
         # Cosine similarity
         dot_product = np.dot(emb1, emb2)
         norm1 = np.linalg.norm(emb1)
         norm2 = np.linalg.norm(emb2)
         
+        logger.info(f"[SIMILARITY] Dot product: {dot_product:.4f}")
+        logger.info(f"[SIMILARITY] Norm1: {norm1:.4f}, Norm2: {norm2:.4f}")
+        
         if norm1 == 0 or norm2 == 0:
+            logger.warning(f"[SIMILARITY] Zero norm detected!")
             return 0.0
         
         similarity = dot_product / (norm1 * norm2)
+        logger.info(f"[SIMILARITY] Final similarity: {similarity:.4f} ({similarity*100:.2f}%)")
         return float(similarity)
     except Exception as e:
-        logger.error(f"[ATTENDANCE] Error calculating similarity: {str(e)}")
+        logger.error(f"[SIMILARITY] Error calculating similarity: {str(e)}", exc_info=True)
         return 0.0
 
 @app.post("/attendance/check-in")
@@ -300,7 +314,9 @@ async def check_in(check_in_data: AttendanceCheckIn, db: Session = Depends(get_d
     - 1x check-in per hari
     - Deteksi keterlambatan (jam 8 WIB)
     """
+    logger.info(f"[CHECK-IN] ════════════════════════════════════════════")
     logger.info(f"[CHECK-IN] User {check_in_data.user_id} attempting check-in")
+    logger.info(f"[CHECK-IN] Received face_embedding length: {len(check_in_data.face_embedding)} chars")
     
     try:
         # 1. Verify user exists
@@ -309,16 +325,25 @@ async def check_in(check_in_data: AttendanceCheckIn, db: Session = Depends(get_d
             logger.warning(f"[CHECK-IN] User not found: {check_in_data.user_id}")
             raise HTTPException(status_code=404, detail="User tidak ditemukan")
         
+        logger.info(f"[CHECK-IN] User found: {user.name} (ID: {user.id})")
+        
         # 2. Verify face embedding match
         if not user.face_embedding:
             logger.warning(f"[CHECK-IN] User {user.name} has no face embedding registered")
             raise HTTPException(status_code=400, detail="Wajah belum terdaftar. Silakan registrasi terlebih dahulu.")
         
+        logger.info(f"[CHECK-IN] User face_embedding in DB length: {len(user.face_embedding)} chars")
+        logger.info(f"[CHECK-IN] Calculating similarity...")
+        
         similarity = calculate_embedding_similarity(user.face_embedding, check_in_data.face_embedding)
         THRESHOLD = 0.55  # Same as login threshold
         
+        logger.info(f"[CHECK-IN] Similarity result: {similarity:.4f} ({similarity*100:.2f}%)")
+        logger.info(f"[CHECK-IN] Threshold: {THRESHOLD:.4f} ({THRESHOLD*100:.2f}%)")
+        
         if similarity < THRESHOLD:
             logger.warning(f"[CHECK-IN] Face mismatch for user {user.name} - Similarity: {similarity:.2f}")
+            logger.warning(f"[CHECK-IN] ════════════════════════════════════════════")
             raise HTTPException(
                 status_code=401, 
                 detail=f"Wajah tidak cocok! (Similarity: {similarity:.2%}). Pastikan pencahayaan baik dan wajah terlihat jelas."
@@ -1391,3 +1416,121 @@ async def get_productivity_report(
         logger.error(f"[REPORTS] Error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Terjadi kesalahan: {str(e)}")
 
+
+# ==================== EVENT ENDPOINTS ====================
+
+class EventCreate(BaseModel):
+    title: str
+    description: Optional[str] = None
+    event_type: str = "meeting"  # meeting, deadline, training, holiday, other
+    date: str  # YYYY-MM-DD
+    time: str  # HH:MM
+    location: Optional[str] = None
+    attendees: Optional[str] = None
+
+class EventUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    event_type: Optional[str] = None
+    date: Optional[str] = None
+    time: Optional[str] = None
+    location: Optional[str] = None
+    attendees: Optional[str] = None
+    status: Optional[str] = None
+
+@app.get("/events")
+async def get_all_events(
+    limit: int = 10,
+    upcoming_only: bool = True,
+    db: Session = Depends(get_db)
+):
+    """Get all events with optional filters"""
+    try:
+        query = db.query(Event)
+        
+        if upcoming_only:
+            # Get today's date in WIB
+            current_time = get_wib_time()
+            today = current_time.strftime("%Y-%m-%d")
+            query = query.filter(Event.date >= today)
+        
+        events = query.order_by(Event.date.asc(), Event.time.asc()).limit(limit).all()
+        
+        return {
+            "total": len(events),
+            "events": [
+                {
+                    "id": e.id,
+                    "title": e.title,
+                    "description": e.description,
+                    "event_type": e.event_type,
+                    "date": e.date,
+                    "time": e.time,
+                    "location": e.location,
+                    "attendees": e.attendees,
+                    "status": e.status,
+                }
+                for e in events
+            ]
+        }
+    except Exception as e:
+        logger.error(f"[EVENTS] Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/events")
+async def create_event(event_data: EventCreate, db: Session = Depends(get_db)):
+    """Create a new event"""
+    try:
+        new_event = Event(
+            title=event_data.title,
+            description=event_data.description,
+            event_type=event_data.event_type,
+            date=event_data.date,
+            time=event_data.time,
+            location=event_data.location,
+            attendees=event_data.attendees,
+        )
+        db.add(new_event)
+        db.commit()
+        db.refresh(new_event)
+        
+        logger.info(f"[EVENTS] Created event: {new_event.title}")
+        return {
+            "message": "Event created successfully",
+            "event": {
+                "id": new_event.id,
+                "title": new_event.title,
+                "date": new_event.date,
+                "time": new_event.time,
+            }
+        }
+    except Exception as e:
+        logger.error(f"[EVENTS] Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/events/upcoming")
+async def get_upcoming_events(limit: int = 5, db: Session = Depends(get_db)):
+    """Get upcoming events for dashboard"""
+    try:
+        current_time = get_wib_time()
+        today = current_time.strftime("%Y-%m-%d")
+        
+        events = db.query(Event).filter(
+            Event.date >= today,
+            Event.status == "scheduled"
+        ).order_by(Event.date.asc(), Event.time.asc()).limit(limit).all()
+        
+        return [
+            {
+                "id": e.id,
+                "title": e.title,
+                "date": e.date,
+                "time": e.time,
+                "event_type": e.event_type,
+                "location": e.location,
+            }
+            for e in events
+        ]
+    except Exception as e:
+        logger.error(f"[EVENTS] Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))

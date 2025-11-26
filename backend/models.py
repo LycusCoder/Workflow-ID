@@ -54,6 +54,24 @@ class Task(Base):
 
     user = relationship("User")
 
+class Event(Base):
+    __tablename__ = "events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    event_type = Column(String, default="meeting")  # meeting, deadline, training, holiday, other
+    date = Column(String, nullable=False)  # Format: YYYY-MM-DD
+    time = Column(String, nullable=False)  # Format: HH:MM
+    location = Column(String, nullable=True)
+    attendees = Column(Text, nullable=True)  # Comma-separated user IDs or names
+    status = Column(String, default="scheduled")  # scheduled, ongoing, completed, cancelled
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    creator = relationship("User", foreign_keys=[created_by])
+
 Base.metadata.create_all(bind=engine)
 
 # Dependency to get DB session

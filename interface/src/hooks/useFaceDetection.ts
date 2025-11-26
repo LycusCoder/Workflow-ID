@@ -127,11 +127,18 @@ export function useFaceDetection(): UseFaceDetectionReturn {
   }, [modelsLoaded, toast, stopScanning])
 
   const detectFace = useCallback(async (): Promise<FaceDetectionResult | null> => {
+    console.log('\n🔍 [DETECT FACE] Memulai deteksi wajah...')
+    console.log('   Video Ref:', videoRef.current ? 'Available ✅' : 'Not Available ❌')
+    console.log('   Is Scanning:', isScanningRef.current ? 'Yes ✅' : 'No ❌')
+    
     if (!videoRef.current || !isScanningRef.current) {
+      console.error('❌ [DETECT FACE] Video ref atau scanning tidak tersedia!')
       return null
     }
 
     try {
+      console.log('   Calling face-api.detectSingleFace...')
+      
       const detection = await faceapi
         .detectSingleFace(
           videoRef.current,
@@ -142,7 +149,10 @@ export function useFaceDetection(): UseFaceDetectionReturn {
         .withFaceLandmarks()
         .withFaceDescriptor()
 
+      console.log('   Detection result:', detection ? 'Found ✅' : 'Not Found ❌')
+
       if (!detection) {
+        console.warn('⚠️ [DETECT FACE] Tidak ada wajah terdeteksi')
         setFaceDetected(false)
         setFacePositioned(false)
         setStatus(TOAST_MESSAGES.FACE.NO_FACE)
@@ -150,14 +160,28 @@ export function useFaceDetection(): UseFaceDetectionReturn {
       }
 
       const score = detection.detection.score
+      console.log('   Detection score:', (score * 100).toFixed(2) + '%')
+      console.log('   Min quality score required:', (FACE_DETECTION_CONFIG.MIN_QUALITY_SCORE * 100).toFixed(2) + '%')
 
       if (score < FACE_DETECTION_CONFIG.MIN_QUALITY_SCORE) {
+        console.warn('⚠️ [DETECT FACE] Kualitas wajah terlalu rendah')
+        console.warn('   Current:', (score * 100).toFixed(2) + '%')
+        console.warn('   Required:', (FACE_DETECTION_CONFIG.MIN_QUALITY_SCORE * 100).toFixed(2) + '%')
         setFaceDetected(true)
         setFacePositioned(false)
         setStatus(TOAST_MESSAGES.FACE.LOW_QUALITY)
         return null
       }
 
+      console.log('✅ [DETECT FACE] Wajah terdeteksi dengan kualitas baik!')
+      console.log('   Descriptor length:', detection.descriptor.length)
+      console.log('   Box:', {
+        x: detection.detection.box.x.toFixed(2),
+        y: detection.detection.box.y.toFixed(2),
+        width: detection.detection.box.width.toFixed(2),
+        height: detection.detection.box.height.toFixed(2),
+      })
+      
       setFaceDetected(true)
       setFacePositioned(true)
 
@@ -172,7 +196,7 @@ export function useFaceDetection(): UseFaceDetectionReturn {
         },
       }
     } catch (error) {
-      console.error('❌ Face detection error:', error)
+      console.error('💥 [DETECT FACE] Exception:', error)
       return null
     }
   }, [])

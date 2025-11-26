@@ -33,40 +33,6 @@ import {
   Legend,
 } from 'recharts'
 
-// Upcoming Events - Tetap mockup (karena belum ada endpoint event)
-const upcomingEvents = [
-  {
-    id: 1,
-    title: 'Team Meeting',
-    date: '25 Nov 2024',
-    time: '14:00 WIB',
-    type: 'meeting',
-    icon: UsersIcon,
-    color: 'text-indigo-600',
-    bg: 'bg-indigo-50',
-  },
-  {
-    id: 2,
-    title: 'Deadline Project Alpha',
-    date: '27 Nov 2024',
-    time: '17:00 WIB',
-    type: 'deadline',
-    icon: FireIcon,
-    color: 'text-red-600',
-    bg: 'bg-red-50',
-  },
-  {
-    id: 3,
-    title: 'Training AI Workshop',
-    date: '28 Nov 2024',
-    time: '09:00 WIB',
-    type: 'training',
-    icon: SparklesIcon,
-    color: 'text-purple-600',
-    bg: 'bg-purple-50',
-  },
-]
-
 export default function BerandaPage() {
   const { user } = useAuth()
 
@@ -78,6 +44,7 @@ export default function BerandaPage() {
   const [productivityData, setProductivityData] = useState<any[]>([])
   const [taskDistribution, setTaskDistribution] = useState<any[]>([])
   const [recentActivities, setRecentActivities] = useState<any[]>([])
+  const [upcomingEvents, setUpcomingEvents] = useState<any[]>([])
 
   // Fetch Dashboard Data
   useEffect(() => {
@@ -87,12 +54,13 @@ export default function BerandaPage() {
         setError(null)
 
         // Fetch semua data secara paralel
-        const [stats, attendance, taskDist, activities, productivity] = await Promise.all([
+        const [stats, attendance, taskDist, activities, productivity, events] = await Promise.all([
           dashboardApi.getStats(),
           dashboardApi.getAttendanceWeekly(),
           dashboardApi.getTaskDistribution(),
           dashboardApi.getRecentActivities(),
           dashboardApi.getProductivityTrend(),
+          dashboardApi.getUpcomingEvents(),
         ])
 
         // Transform Stats Data untuk UI
@@ -188,6 +156,40 @@ export default function BerandaPage() {
             value: item.score,
           }))
           setProductivityData(transformed)
+        }
+
+        // Set Upcoming Events dengan icon mapping
+        if (events.data && Array.isArray(events.data)) {
+          const iconMap: Record<string, any> = {
+            meeting: UsersIcon,
+            deadline: FireIcon,
+            training: SparklesIcon,
+            holiday: CalendarIcon,
+          }
+          const colorMap: Record<string, string> = {
+            meeting: 'text-indigo-600',
+            deadline: 'text-red-600',
+            training: 'text-purple-600',
+            holiday: 'text-green-600',
+          }
+          const bgMap: Record<string, string> = {
+            meeting: 'bg-indigo-50',
+            deadline: 'bg-red-50',
+            training: 'bg-purple-50',
+            holiday: 'bg-green-50',
+          }
+          
+          const transformed = events.data.map((event: any) => ({
+            id: event.id,
+            title: event.title,
+            date: event.date,
+            time: event.time + ' WIB',
+            type: event.event_type,
+            icon: iconMap[event.event_type] || UsersIcon,
+            color: colorMap[event.event_type] || 'text-gray-600',
+            bg: bgMap[event.event_type] || 'bg-gray-50',
+          }))
+          setUpcomingEvents(transformed)
         }
 
       } catch (err: any) {
